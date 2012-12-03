@@ -38,11 +38,18 @@ def top_n_artists(n):
 
 def find_artist_url(artist_name):
   normalized = urllib.quote(artist_name, '')
-  url = 'http://www.musicbrainz.org/ws/2/artist/?query=artist:"%s"&limit=1' % normalized
+  url = 'http://www.musicbrainz.org/ws/2/artist/?query=artist:"%s"&limit=10' % normalized
   print('  Searching MusicBrainz at URL %s' % url)
   resp = requests.get(url, headers=HEADERS)
   tree = ET.fromstring(resp.text.encode('utf-8'))[0]
+
   artist_node = tree[0]
+  # prefer exact matches
+  for node in tree:
+    if node[0].text == artist_name:
+      artist_node = node
+      continue
+
   mb_id = artist_node.attrib['id']
   print('  Found MusicBrainz ID %s' % mb_id)
 
