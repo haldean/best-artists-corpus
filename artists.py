@@ -62,12 +62,22 @@ def find_artist_url(artist_name):
   raise Exception(
       'MusicBrainz does not have a wikipedia page for %s' % artist_name)
 
+def wikipedia_title_from_url(url):
+  return url.split('/')[-1]
+
 def get_artist_page(artist_name, allow_band_append=True):
   print('Get page for %s' % artist_name)
-  url = find_artist_url(artist_name).replace('en.wiki', 'en.m.wiki')
-  print('  Found URL %s' % url)
+  url = find_artist_url(artist_name)
+
+  title = wikipedia_title_from_url(url)
+  print('  Found Wikipedia page %s' % title)
+  
+  url = (
+      'http://en.wikipedia.org/w/api.php?'
+      'action=query&format=json&redirects&export'
+      '&titles=%s' % title)
   resp = requests.get(url, headers=HEADERS)
-  return resp.text
+  return resp.json['query']['export']['*']
 
 def artist_page_path(artist_name):
   return os.path.abspath(
