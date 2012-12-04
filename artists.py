@@ -24,6 +24,9 @@ HEADERS = {
     'User-agent': 'bayespop (bayespop@haldean.org)',
     }
 
+class NoWikiForArtistError(Exception):
+  pass
+
 def top_n_artists(n):
   url = (
       'http://ws.audioscrobbler.com/2.0/'
@@ -48,7 +51,7 @@ def find_artist_url(artist_name):
   for node in tree:
     if node[0].text == artist_name:
       artist_node = node
-      continue
+      break
 
   mb_id = artist_node.attrib['id']
   print('  Found MusicBrainz ID %s' % mb_id)
@@ -59,14 +62,13 @@ def find_artist_url(artist_name):
     if link.has_key('href') and WIKI_LINK.match(link['href']):
       if 'discography' not in link['href']:
         return link['href']
-  raise Exception(
-      'MusicBrainz does not have a wikipedia page for %s' % artist_name)
+  raise NoWikiForArtistError(
+      '  MusicBrainz does not have a wikipedia page for %s' % artist_name)
 
 def wikipedia_title_from_url(url):
   return url.split('/')[-1]
 
 def get_artist_page(artist_name, allow_band_append=True):
-  print('Get page for %s' % artist_name)
   url = find_artist_url(artist_name)
 
   title = wikipedia_title_from_url(url)
@@ -88,13 +90,20 @@ def artist_page_path(artist_name):
 
 def cache_all_artists():
   with open(ARTIST_FILE, 'r') as f:
-    for line in f:
+    for i, line in enumerate(f):
       artist = line.decode('utf-8').strip()
       path = artist_page_path(artist)
       if os.path.exists(path):
         continue
 
-      page_contents = get_artist_page(artist)
+      print('Get page for %s (artist %d)' % (artist, i))
+      try:
+        page_contents = get_artist_page(artist)
+      except NoWikiForArtistError as e:
+        print(e.message)
+        with open('missing.txt', 'a') as missing_f:
+          missing_f.write(('%s\n' % artist).encode('utf-8'))
+        continue
       with open(path, 'w') as artist_f:
         artist_f.write(page_contents.encode('utf-8'))
         print('  Wrote cache file %s' % path)
